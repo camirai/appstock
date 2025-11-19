@@ -21,13 +21,13 @@ st.markdown("""
         padding-right: 0.6rem;
     }
 
-    .stSelectbox, .stMultiSelect {
+    .stSelectbox {
         width: 100% !important;
     }
 
+    /* Que el texto de las tablas no se corte, que pueda hacer wrap */
     td, th {
-        white-space: nowrap;
-        text-overflow: ellipsis;
+        white-space: normal;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -114,6 +114,14 @@ def aplicar_busqueda(df, texto):
     return df[mask]
 
 
+def opciones_ordenadas(df, col):
+    """
+    Devuelve opciones ordenadas alfabéticamente como texto,
+    evitando errores de tipos mezclados.
+    """
+    return sorted(df[col].dropna().astype(str).unique()) if col in df.columns else []
+
+
 # ------------------ CARGA DE DATOS ------------------ #
 
 df_raw = load_data()
@@ -135,54 +143,54 @@ df_filtrado = aplicar_busqueda(df_raw, texto_busqueda)
 st.sidebar.header("🎛️ Filtros")
 
 # Filtro cascada 1: Depósito
-dep_options = sorted(df_filtrado["Deposito"].dropna().unique()) if "Deposito" in df_filtrado.columns else []
-dep_sel = st.sidebar.multiselect(
+dep_options = opciones_ordenadas(df_filtrado, "Deposito")
+dep_sel = st.sidebar.selectbox(
     "Depósito",
-    options=dep_options,
-    default=dep_options
+    options=["Todos"] + dep_options,
+    index=0
 )
-if dep_sel:
-    df_filtrado = df_filtrado[df_filtrado["Deposito"].isin(dep_sel)]
+if dep_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Deposito"].astype(str) == dep_sel]
 
 # Filtro cascada 2: Línea
-linea_options = sorted(df_filtrado["Linea"].dropna().unique()) if "Linea" in df_filtrado.columns else []
-linea_sel = st.sidebar.multiselect(
+linea_options = opciones_ordenadas(df_filtrado, "Linea")
+linea_sel = st.sidebar.selectbox(
     "Línea",
-    options=linea_options,
-    default=linea_options
+    options=["Todos"] + linea_options,
+    index=0
 )
-if linea_sel:
-    df_filtrado = df_filtrado[df_filtrado["Linea"].isin(linea_sel)]
+if linea_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Linea"].astype(str) == linea_sel]
 
 # Filtro cascada 3: Categoría
-cat_options = sorted(df_filtrado["Categoria"].dropna().unique()) if "Categoria" in df_filtrado.columns else []
-cat_sel = st.sidebar.multiselect(
+cat_options = opciones_ordenadas(df_filtrado, "Categoria")
+cat_sel = st.sidebar.selectbox(
     "Categoría",
-    options=cat_options,
-    default=cat_options
+    options=["Todos"] + cat_options,
+    index=0
 )
-if cat_sel:
-    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(cat_sel)]
+if cat_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Categoria"].astype(str) == cat_sel]
 
 # Filtro cascada 4: Producto
-prod_options = sorted(df_filtrado["Producto"].dropna().unique()) if "Producto" in df_filtrado.columns else []
-prod_sel = st.sidebar.multiselect(
+prod_options = opciones_ordenadas(df_filtrado, "Producto")
+prod_sel = st.sidebar.selectbox(
     "Producto",
-    options=prod_options,
-    default=prod_options
+    options=["Todos"] + prod_options,
+    index=0
 )
-if prod_sel:
-    df_filtrado = df_filtrado[df_filtrado["Producto"].isin(prod_sel)]
+if prod_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Producto"].astype(str) == prod_sel]
 
 # Filtro cascada 5: Medida
-med_options = sorted(df_filtrado["Medida"].dropna().unique()) if "Medida" in df_filtrado.columns else []
-med_sel = st.sidebar.multiselect(
+med_options = opciones_ordenadas(df_filtrado, "Medida")
+med_sel = st.sidebar.selectbox(
     "Medida",
-    options=med_options,
-    default=med_options
+    options=["Todos"] + med_options,
+    index=0
 )
-if med_sel:
-    df_filtrado = df_filtrado[df_filtrado["Medida"].isin(med_sel)]
+if med_sel != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Medida"].astype(str) == med_sel]
 
 # ----------- CONTROLES ESPECÍFICOS PARA VENCIMIENTOS (sidebar) ----------- #
 
