@@ -1,31 +1,30 @@
 import io
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
-# ------------------ CONFIGURACIÓN GENERAL ------------------ #
+# ------------------ CONFIG GENERAL ------------------ #
 st.set_page_config(
     page_title="FemiBot Stock",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Pequeño CSS para mejorar mobile
+# CSS liviano para mobile
 st.markdown("""
     <style>
-    /* Achicar padding lateral en mobile */
     .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-        padding-left: 0.8rem;
-        padding-right: 0.8rem;
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
     }
 
-    /* Hacer que los select se vean a ancho completo */
     .stSelectbox, .stMultiSelect {
         width: 100% !important;
     }
 
-    /* Evitar que los textos de las columnas se corten */
     td, th {
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -33,149 +32,279 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 # ------------------ FUNCIONES AUXILIARES ------------------ #
 
 @st.cache_data
 def load_data():
-    # Ajustá los nombres de archivo a los tuyos reales
-    df_inv = pd.read_csv("data/inventario.csv")
-    df_vto = pd.read_csv("data/vencimientos.csv")
-    return df_inv, df_vto
+    """
+    Lee el archivo Stock.csv separado por COMAS.
+    """
+    df = pd.read_csv("data/Stock.csv", sep=",")
+
+    # Normalizar nombres de columnas -> internos sin espacios/acentos
+    col_map = {
+        "Depósito": "Deposito",
+        "Partida": "Partida",
+        "Secuencia": "Secuencia",
+        "Desde": "Desde",
+        "Lote": "Lote",
+        "Vencimiento": "Vencimiento",
+        "Producto": "Producto",
+        "Medida": "Medida",
+        "Secuencia modif": "Secuencia_modif",
+        "Partida completa": "Partida_completa",
+        "Linea": "Linea",
+        "Categoria": "Categoria"
+    }
+    df.rename(columns=col_map, inplace=True)
+
+    # Conversión de fechas (día primero)
+    df["Vencimiento"] = pd.to_datetime(df["Vencimiento"], dayfirst=True, errors="coerce")
+    df["Desde"] = pd.to_datetime(df["Desde"], dayfirst=True, errors="coerce")
+
+    # Cálculo de días
+    hoy = pd.Timestamp(datetime.now().date())
+    df["Dias_hasta_vto"] = (df["Vencimiento"] - hoy).dt.days
+    df["Dias_en_deposito"] = (hoy - df["Desde"]).dt.days
+
+    # Cada fila = 1 unidad de material
+    df["Cantidad"] = 1
+
+    return df
+
 
 def to_excel(df, sheet_name="Datos"):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name=sheet_name)
-    processed_data = output.getvalue()
-    return processed_data
+    return output.getvalue()
+
 
 def kpi_card(label, value, help_text=None):
     st.metric(label=label, value=value, help=help_text)
 
+
+def aplicar_busqueda(df, texto):
+    """
+    Filtro libre por texto en varias columnas (partida, lote, producto, etc.).
+    """
+    if not texto:
+        return df
+
+    texto = texto.strip().lower()
+    cols_busqueda = [
+        c for c in [
+            "Partida", "Lote", "Producto", "Medida",
+            "Partida_completa", "Secuencia", "Secuencia_modif"
+        ] if c in df.columns
+    ]
+
+    if not cols_busqueda:
+        return df
+
+    mask = False
+    for col in cols_busqueda:
+        mask = mask | df[col].astype(str).str.lower().str.contains(texto, na=False)
+
+    return df[mask]
+
+
 # ------------------ CARGA DE DATOS ------------------ #
 
-df_inventario, df_vencimientos = load_data()
-
-# Asegurá que estas columnas existan en tus CSV:
-# Deposito, Material, Categoria, Stock, FechaVencimiento
-
-# Si FechaVencimiento está en formato texto, la convertimos
-if "FechaVencimiento" in df_vencimientos.columns:
-    df_vencimientos["FechaVencimiento"] = pd.to_datetime(
-        df_vencimientos["FechaVencimiento"], errors="coerce"
-    )
-
-# ------------------ SIDEBAR (FILTROS) ------------------ #
-
-st.sidebar.title("Filtros")
-
-# Filtros comunes
-depositos = sorted(df_inventario["Deposito"].dropna().unique().tolist())
-materiales = sorted(df_inventario["Material"].dropna().unique().tolist())
-categorias = sorted(df_inventario["Categoria"].dropna().unique().tolist())
-
-dep_sel = st.sidebar.multiselect("Depósito", options=depositos, default=depositos)
-mat_sel = st.sidebar.multiselect("Material", options=materiales, default=materiales)
-cat_sel = st.sidebar.multiselect("Categoría", options=categorias, default=categorias)
-
-# Filtro de rango de vencimiento (solo para tab de vencimientos)
-st.sidebar.markdown("---")
-st.sidebar.subheader("Vencimientos")
-if "FechaVencimiento" in df_vencimientos.columns:
-    min_date = df_vencimientos["FechaVencimiento"].min()
-    max_date = df_vencimientos["FechaVencimiento"].max()
-    fecha_desde, fecha_hasta = st.sidebar.date_input(
-        "Rango de fechas",
-        value=(min_date, max_date)
-    )
-else:
-    fecha_desde, fecha_hasta = None, None
-
-# ------------------ APLICAR FILTROS ------------------ #
-
-mask_inv = (
-    df_inventario["Deposito"].isin(dep_sel) &
-    df_inventario["Material"].isin(mat_sel) &
-    df_inventario["Categoria"].isin(cat_sel)
-)
-df_inv_filtrado = df_inventario[mask_inv].copy()
-
-mask_vto = (
-    df_vencimientos["Deposito"].isin(dep_sel) &
-    df_vencimientos["Material"].isin(mat_sel) &
-    df_vencimientos["Categoria"].isin(cat_sel)
-)
-
-if fecha_desde and fecha_hasta and "FechaVencimiento" in df_vencimientos.columns:
-    mask_vto = mask_vto & (
-        (df_vencimientos["FechaVencimiento"] >= pd.to_datetime(fecha_desde)) &
-        (df_vencimientos["FechaVencimiento"] <= pd.to_datetime(fecha_hasta))
-    )
-
-df_vto_filtrado = df_vencimientos[mask_vto].copy()
-
-# ------------------ CONTENIDO PRINCIPAL ------------------ #
+df_raw = load_data()
 
 st.title("📊 FemiBot Stock")
-st.caption("Visualización dinámica de inventario y vencimientos (válvulas, endoprótesis, etc.)")
+st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
 
-tabs = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
+
+# ------------------ SIDEBAR: BUSCADOR + FILTROS ------------------ #
+
+st.sidebar.header("🔍 Buscador")
+texto_busqueda = st.sidebar.text_input(
+    "Buscar por producto, lote, partida, etc.",
+    placeholder="Ej: ONYX, 0D737, 001259084..."
+)
+
+df_filtrado = aplicar_busqueda(df_raw, texto_busqueda)
+
+st.sidebar.header("🎛️ Filtros")
+
+# Filtro cascada 1: Depósito
+dep_options = sorted(df_filtrado["Deposito"].dropna().unique()) if "Deposito" in df_filtrado.columns else []
+dep_sel = st.sidebar.multiselect(
+    "Depósito",
+    options=dep_options,
+    default=dep_options
+)
+if dep_sel:
+    df_filtrado = df_filtrado[df_filtrado["Deposito"].isin(dep_sel)]
+
+# Filtro cascada 2: Línea
+linea_options = sorted(df_filtrado["Linea"].dropna().unique()) if "Linea" in df_filtrado.columns else []
+linea_sel = st.sidebar.multiselect(
+    "Línea",
+    options=linea_options,
+    default=linea_options
+)
+if linea_sel:
+    df_filtrado = df_filtrado[df_filtrado["Linea"].isin(linea_sel)]
+
+# Filtro cascada 3: Categoría
+cat_options = sorted(df_filtrado["Categoria"].dropna().unique()) if "Categoria" in df_filtrado.columns else []
+cat_sel = st.sidebar.multiselect(
+    "Categoría",
+    options=cat_options,
+    default=cat_options
+)
+if cat_sel:
+    df_filtrado = df_filtrado[df_filtrado["Categoria"].isin(cat_sel)]
+
+# Filtro cascada 4: Producto
+prod_options = sorted(df_filtrado["Producto"].dropna().unique()) if "Producto" in df_filtrado.columns else []
+prod_sel = st.sidebar.multiselect(
+    "Producto",
+    options=prod_options,
+    default=prod_options
+)
+if prod_sel:
+    df_filtrado = df_filtrado[df_filtrado["Producto"].isin(prod_sel)]
+
+# Filtro cascada 5: Medida
+med_options = sorted(df_filtrado["Medida"].dropna().unique()) if "Medida" in df_filtrado.columns else []
+med_sel = st.sidebar.multiselect(
+    "Medida",
+    options=med_options,
+    default=med_options
+)
+if med_sel:
+    df_filtrado = df_filtrado[df_filtrado["Medida"].isin(med_sel)]
+
+# ----------- CONTROLES ESPECÍFICOS PARA VENCIMIENTOS (sidebar) ----------- #
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("⏰ Configuración de vencimientos")
+
+estado_vto = st.sidebar.radio(
+    "Estado de vencimiento",
+    options=["Todos", "Solo próximos", "Solo vencidos"],
+    help="Se usa en la pestaña de Vencimientos."
+)
+
+max_dias_proximos = st.sidebar.slider(
+    "Días hasta vencimiento (para 'próximos')",
+    min_value=1,
+    max_value=180,
+    value=30
+)
+
+
+# ------------------ PESTAÑAS PRINCIPALES ------------------ #
+
+tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
+
 
 # ------------------ TAB INVENTARIO ------------------ #
-with tabs[0]:
+
+with tab_inv:
     st.subheader("Inventario actual")
+
+    # KPIs: cada fila = 1 material
+    total_materiales = int(df_filtrado["Cantidad"].sum()) if "Cantidad" in df_filtrado.columns else len(df_filtrado)
+    depositos_unicos = df_filtrado["Deposito"].nunique() if "Deposito" in df_filtrado.columns else 0
+    promedio_dias_deposito = (
+        int(df_filtrado["Dias_en_deposito"].mean())
+        if "Dias_en_deposito" in df_filtrado.columns and not df_filtrado["Dias_en_deposito"].isna().all()
+        else None
+    )
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        kpi_card("Registros", len(df_inv_filtrado))
+        kpi_card("Materiales (filtrados)", total_materiales)
     with col2:
-        if "Stock" in df_inv_filtrado.columns:
-            kpi_card("Stock total", int(df_inv_filtrado["Stock"].sum()))
+        kpi_card("Depósitos involucrados", depositos_unicos)
     with col3:
-        kpi_card("Depósitos filtrados", len(dep_sel))
+        if promedio_dias_deposito is not None:
+            kpi_card("Promedio días en depósito", promedio_dias_deposito)
 
-    st.markdown("### Detalle de inventario filtrado")
+    st.markdown("### Detalle de inventario")
 
-    st.dataframe(
-        df_inv_filtrado,
-        use_container_width=True
-    )
+    # Orden de columnas para mostrar
+    cols_orden = [
+        "Deposito", "Linea", "Categoria", "Producto", "Medida",
+        "Partida", "Secuencia", "Partida_completa", "Secuencia_modif",
+        "Lote", "Desde", "Dias_en_deposito",
+        "Vencimiento", "Dias_hasta_vto"
+    ]
+    cols_existentes = [c for c in cols_orden if c in df_filtrado.columns]
+    otros = [c for c in df_filtrado.columns if c not in cols_existentes]
+    df_inv_view = df_filtrado[cols_existentes + otros]
 
-    # Descarga en Excel
-    excel_data = to_excel(df_inv_filtrado, sheet_name="Inventario")
+    st.dataframe(df_inv_view, use_container_width=True)
+
+    excel_inv = to_excel(df_inv_view, sheet_name="Inventario")
     st.download_button(
         label="⬇️ Descargar inventario filtrado en Excel",
-        data=excel_data,
+        data=excel_inv,
         file_name="inventario_filtrado.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+
 # ------------------ TAB VENCIMIENTOS ------------------ #
-with tabs[1]:
+
+with tab_vto:
     st.subheader("Materiales por vencimiento")
+
+    df_vto = df_filtrado.copy()
+    if "Vencimiento" in df_vto.columns:
+        df_vto = df_vto[df_vto["Vencimiento"].notna()]
+
+    # Aplicar estado de vencimiento
+    if "Dias_hasta_vto" in df_vto.columns:
+        if estado_vto == "Solo vencidos":
+            df_vto = df_vto[df_vto["Dias_hasta_vto"] < 0]
+        elif estado_vto == "Solo próximos":
+            df_vto = df_vto[
+                (df_vto["Dias_hasta_vto"] >= 0) &
+                (df_vto["Dias_hasta_vto"] <= max_dias_proximos)
+            ]
+        else:
+            df_vto = df_vto[df_vto["Dias_hasta_vto"].notna()]
+
+    # KPIs para vencimientos
+    total_vto = len(df_vto)
+    cant_vencidos = int((df_vto["Dias_hasta_vto"] < 0).sum()) if "Dias_hasta_vto" in df_vto.columns else 0
+    cant_proximos = int(
+        ((df_vto["Dias_hasta_vto"] >= 0) & (df_vto["Dias_hasta_vto"] <= max_dias_proximos)).sum()
+    ) if "Dias_hasta_vto" in df_vto.columns else 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        kpi_card("Registros", len(df_vto_filtrado))
+        kpi_card("Materiales (vista vencimientos)", total_vto)
     with col2:
-        if "FechaVencimiento" in df_vto_filtrado.columns and not df_vto_filtrado.empty:
-            prox = df_vto_filtrado["FechaVencimiento"].min().date()
-            kpi_card("Próximo vencimiento", str(prox))
+        kpi_card("Vencidos", cant_vencidos)
     with col3:
-        if "Stock" in df_vto_filtrado.columns:
-            kpi_card("Stock en riesgo", int(df_vto_filtrado["Stock"].sum()))
+        kpi_card(f"Próx. ≤ {max_dias_proximos} días", cant_proximos)
 
-    st.markdown("### Detalle de vencimientos filtrados")
+    st.markdown("### Detalle de vencimientos")
 
-    st.dataframe(
-        df_vto_filtrado,
-        use_container_width=True
-    )
+    cols_orden_vto = [
+        "Deposito", "Linea", "Categoria", "Producto", "Medida",
+        "Partida", "Secuencia", "Partida_completa", "Secuencia_modif",
+        "Lote", "Desde", "Dias_en_deposito",
+        "Vencimiento", "Dias_hasta_vto"
+    ]
+    cols_existentes_vto = [c for c in cols_orden_vto if c in df_vto.columns]
+    otros_vto = [c for c in df_vto.columns if c not in cols_existentes_vto]
+    df_vto_view = df_vto[cols_existentes_vto + otros_vto]
 
-    excel_data_vto = to_excel(df_vto_filtrado, sheet_name="Vencimientos")
+    st.dataframe(df_vto_view, use_container_width=True)
+
+    excel_vto = to_excel(df_vto_view, sheet_name="Vencimientos")
     st.download_button(
         label="⬇️ Descargar vencimientos filtrados en Excel",
-        data=excel_data_vto,
+        data=excel_vto,
         file_name="vencimientos_filtrados.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
