@@ -6,7 +6,7 @@ import streamlit as st
 
 # ------------------ CONFIG GENERAL ------------------ #
 st.set_page_config(
-    page_title="Stock",
+    page_title="FemiBot Stock",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -145,7 +145,7 @@ if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 
 if not st.session_state.auth_ok:
-    st.title("📦 Stock")
+    st.title("📦 FemiBot Stock")
     st.subheader("Ingreso")
 
     with st.form("login_form"):
@@ -169,32 +169,7 @@ if not st.session_state.auth_ok:
 df_raw = load_data()
 
 st.title("📊 FemiBot Stock")
-st.caption("Visualización de stock y vencimientos de materiales.")
-
-# Flags para limpiar filtros (se ejecutan al comienzo del script)
-if "clear_inv" not in st.session_state:
-    st.session_state.clear_inv = False
-if "clear_vto" not in st.session_state:
-    st.session_state.clear_vto = False
-
-if st.session_state.clear_inv:
-    for key in ["search_inv", "dep_inv", "linea_inv", "cat_inv",
-                "prod_inv", "med_inv", "mes_desde_inv"]:
-        if key in st.session_state:
-            del st.session_state[key]
-    st.session_state.clear_inv = False
-    st.rerun()
-
-if st.session_state.clear_vto:
-    for key in [
-        "search_vto", "dep_vto", "linea_vto", "cat_vto",
-        "prod_vto", "med_vto", "mes_vto",
-        "estado_vto_radio", "slider_dias_vto"
-    ]:
-        if key in st.session_state:
-            del st.session_state[key]
-    st.session_state.clear_vto = False
-    st.rerun()
+st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
 
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
@@ -204,9 +179,11 @@ tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 with tab_inv:
     st.subheader("Inventario actual")
 
-    # Botón: solo setea el flag, el borrado real se hace arriba
+    # Botón que limpia TODO lo de inventario (incluyendo desplegables)
     if st.button("🧹 Limpiar filtros de inventario"):
-        st.session_state.clear_inv = True
+        for key in ["search_inv", "dep_inv", "linea_inv", "cat_inv",
+                    "prod_inv", "med_inv", "mes_desde_inv"]:
+            st.session_state.pop(key, None)
         st.rerun()
 
     st.markdown("#### 🔍 Buscador (inventario)")
@@ -289,22 +266,15 @@ with tab_inv:
         if mes_sel_inv and "Todos" not in mes_sel_inv:
             df_inv = df_inv[df_inv["MesDesde"].isin(mes_sel_inv)]
 
+    # KPIs inventario (solo 2 tarjetas)
     total_materiales = int(df_inv["Cantidad"].sum()) if "Cantidad" in df_inv.columns else len(df_inv)
     depositos_unicos = df_inv["Deposito"].nunique() if "Deposito" in df_inv.columns else 0
-    promedio_dias_deposito = (
-        int(df_inv["Dias_en_deposito"].mean())
-        if "Dias_en_deposito" in df_inv.columns and not df_inv["Dias_en_deposito"].isna().all()
-        else None
-    )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
         kpi_card("Materiales (filtrados)", total_materiales)
     with col2:
         kpi_card("Depósitos involucrados", depositos_unicos)
-    with col3:
-        if promedio_dias_deposito is not None:
-            kpi_card("Promedio días en depósito", promedio_dias_deposito)
 
     st.markdown("### Detalle de inventario")
 
@@ -345,8 +315,14 @@ with tab_vto:
 
     df_vto = df_raw[df_raw["Vencimiento"].notna()].copy()
 
+    # Botón limpiar vencimientos
     if st.button("🧹 Limpiar filtros de vencimientos"):
-        st.session_state.clear_vto = True
+        for key in [
+            "search_vto", "dep_vto", "linea_vto", "cat_vto",
+            "prod_vto", "med_vto", "mes_vto",
+            "estado_vto_radio", "slider_dias_vto"
+        ]:
+            st.session_state.pop(key, None)
         st.rerun()
 
     st.markdown("#### 🔍 Buscador (vencimientos)")
