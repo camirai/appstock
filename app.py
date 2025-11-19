@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS liviano para mobile
+# CSS para mobile + estética
 st.markdown("""
     <style>
     .block-container {
@@ -21,13 +21,40 @@ st.markdown("""
         padding-right: 0.6rem;
     }
 
+    /* Selectbox más chico y con texto completo */
+    .stSelectbox > label {
+        font-size: 0.85rem;
+    }
+    .stSelectbox div[data-baseweb="select"] span {
+        font-size: 0.85rem;
+        white-space: normal;  /* que el texto se envuelva */
+    }
     .stSelectbox {
         width: 100% !important;
     }
 
-    /* Que el texto de las tablas no se corte, que pueda hacer wrap */
+    /* Tablas: permitir varias líneas de texto */
     td, th {
         white-space: normal;
+    }
+
+    /* KPI cards más distintivas */
+    .kpi-card {
+        background-color: #f1f5f9;
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+    }
+    .kpi-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+    }
+    .kpi-value {
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: #0f172a;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -86,7 +113,19 @@ def to_excel(df, sheet_name="Datos"):
 
 
 def kpi_card(label, value, help_text=None):
-    st.metric(label=label, value=value, help=help_text)
+    """
+    KPI con estilo de card.
+    """
+    tooltip = f" title='{help_text}' " if help_text else ""
+    st.markdown(
+        f"""
+        <div class="kpi-card" {tooltip}>
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 def aplicar_busqueda(df, texto):
@@ -192,24 +231,6 @@ med_sel = st.sidebar.selectbox(
 if med_sel != "Todos":
     df_filtrado = df_filtrado[df_filtrado["Medida"].astype(str) == med_sel]
 
-# ----------- CONTROLES ESPECÍFICOS PARA VENCIMIENTOS (sidebar) ----------- #
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("⏰ Configuración de vencimientos")
-
-estado_vto = st.sidebar.radio(
-    "Estado de vencimiento",
-    options=["Todos", "Solo próximos", "Solo vencidos"],
-    help="Se usa en la pestaña de Vencimientos."
-)
-
-max_dias_proximos = st.sidebar.slider(
-    "Días hasta vencimiento (para 'próximos')",
-    min_value=1,
-    max_value=180,
-    value=30
-)
-
 
 # ------------------ PESTAÑAS PRINCIPALES ------------------ #
 
@@ -267,6 +288,23 @@ with tab_inv:
 
 with tab_vto:
     st.subheader("Materiales por vencimiento")
+
+    # Controles específicos de vencimiento SOLO acá
+    st.markdown("#### ⏰ Configuración de vencimientos")
+    col_cfg1, col_cfg2 = st.columns([1, 3])
+    with col_cfg1:
+        estado_vto = st.radio(
+            "Estado de vencimiento",
+            options=["Todos", "Solo próximos", "Solo vencidos"],
+            help="Afecta la vista de esta pestaña."
+        )
+    with col_cfg2:
+        max_dias_proximos = st.slider(
+            "Días hasta vencimiento (para 'próximos')",
+            min_value=1,
+            max_value=180,
+            value=30
+        )
 
     df_vto = df_filtrado.copy()
     if "Vencimiento" in df_vto.columns:
