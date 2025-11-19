@@ -38,9 +38,10 @@ st.markdown("""
 @st.cache_data
 def load_data():
     """
-    Lee el archivo Stock.csv separado por COMAS.
+    Lee el archivo Stock.xlsx desde /data.
+    Cada fila representa 1 material.
     """
-    df = pd.read_csv("data/Stock.csv", sep=",")
+    df = pd.read_excel("data/Stock.xlsx")
 
     # Normalizar nombres de columnas -> internos sin espacios/acentos
     col_map = {
@@ -75,6 +76,9 @@ def load_data():
 
 
 def to_excel(df, sheet_name="Datos"):
+    """
+    Devuelve un archivo Excel en memoria para descargar.
+    """
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name=sheet_name)
