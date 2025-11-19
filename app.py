@@ -216,7 +216,7 @@ with tab_inv:
                     "prod_inv", "med_inv", "mes_desde_inv"]:
             if key in st.session_state:
                 del st.session_state[key]
-        st.experimental_rerun()
+            st.rerun()
 
     # --- Buscador INVENTARIO ---
     st.markdown("#### 🔍 Buscador (inventario)")
@@ -360,7 +360,7 @@ with tab_vto:
         ]:
             if key in st.session_state:
                 del st.session_state[key]
-        st.experimental_rerun()
+            st.rerun()
 
     # --- Buscador VENCIMIENTOS ---
     st.markdown("#### 🔍 Buscador (vencimientos)")
