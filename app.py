@@ -7,6 +7,7 @@ import streamlit as st
 # ------------------ CONFIG GENERAL ------------------ #
 st.set_page_config(
     page_title="FemiBot Stock",
+    page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -21,19 +22,25 @@ st.markdown("""
         padding-right: 0.6rem;
     }
 
-    /* Selectbox más chico y con texto completo */
-    .stSelectbox > label {
+    /* Selects y multiselects más chicos y con texto completo */
+    .stSelectbox > label,
+    .stMultiSelect > label {
         font-size: 0.85rem;
     }
-    .stSelectbox div[data-baseweb="select"] span {
+    .stSelectbox div[data-baseweb="select"] span,
+    .stMultiSelect div[data-baseweb="select"] span {
         font-size: 0.85rem;
-        white-space: normal;  /* que el texto se envuelva */
+        white-space: normal;
     }
-    .stSelectbox {
+    .stSelectbox, .stMultiSelect {
         width: 100% !important;
     }
 
-    /* Tablas: permitir varias líneas de texto */
+    /* Tablas: permitir varias líneas de texto y agrandar ancho total */
+    .stDataFrame {
+        min-width: 1200px;
+        overflow-x: auto;
+    }
     td, th {
         white-space: normal;
     }
@@ -163,15 +170,37 @@ def opciones_ordenadas(df, col):
     return sorted(df[col].dropna().astype(str).unique()) if col in df.columns else []
 
 
-# ------------------ CARGA DE DATOS ------------------ #
+# ------------------ LOGIN ------------------ #
+
+if "auth_ok" not in st.session_state:
+    st.session_state.auth_ok = False
+
+if not st.session_state.auth_ok:
+    st.title("📦 FemiBot Stock")
+    st.subheader("Ingreso")
+
+    with st.form("login_form"):
+        user = st.text_input("Usuario")
+        pwd = st.text_input("Contraseña", type="password")
+        submitted = st.form_submit_button("Ingresar")
+
+    if submitted:
+        if user == "femani" and pwd == "stock2025":
+            st.session_state.auth_ok = True
+            st.success("Acceso concedido")
+            st.experimental_rerun()
+        else:
+            st.error("Usuario o contraseña incorrectos")
+
+    st.stop()
+
+
+# ------------------ APP PRINCIPAL ------------------ #
 
 df_raw = load_data()
 
 st.title("📊 FemiBot Stock")
 st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
-
-
-# ------------------ PESTAÑAS PRINCIPALES ------------------ #
 
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
@@ -180,6 +209,14 @@ tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
 with tab_inv:
     st.subheader("Inventario actual")
+
+    # Botón para limpiar filtros de inventario
+    if st.button("🧹 Limpiar filtros de inventario"):
+        for key in ["search_inv", "dep_inv", "linea_inv", "cat_inv",
+                    "prod_inv", "med_inv", "mes_desde_inv"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.experimental_rerun()
 
     # --- Buscador INVENTARIO ---
     st.markdown("#### 🔍 Buscador (inventario)")
@@ -197,74 +234,72 @@ with tab_inv:
 
     with col_f1:
         dep_options_inv = opciones_ordenadas(df_inv, "Deposito")
-        dep_sel_inv = st.selectbox(
+        dep_sel_inv = st.multiselect(
             "Depósito",
             options=["Todos"] + dep_options_inv,
-            index=0,
+            default=["Todos"],
             key="dep_inv"
         )
-        if dep_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["Deposito"].astype(str) == dep_sel_inv]
+        if "Todos" not in dep_sel_inv and len(dep_sel_inv) > 0:
+            df_inv = df_inv[df_inv["Deposito"].astype(str).isin(dep_sel_inv)]
 
     with col_f2:
         linea_options_inv = opciones_ordenadas(df_inv, "Linea")
-        linea_sel_inv = st.selectbox(
+        linea_sel_inv = st.multiselect(
             "Línea",
             options=["Todos"] + linea_options_inv,
-            index=0,
+            default=["Todos"],
             key="linea_inv"
         )
-        if linea_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["Linea"].astype(str) == linea_sel_inv]
+        if "Todos" not in linea_sel_inv and len(linea_sel_inv) > 0:
+            df_inv = df_inv[df_inv["Linea"].astype(str).isin(linea_sel_inv)]
 
     with col_f3:
         cat_options_inv = opciones_ordenadas(df_inv, "Categoria")
-        cat_sel_inv = st.selectbox(
+        cat_sel_inv = st.multiselect(
             "Categoría",
             options=["Todos"] + cat_options_inv,
-            index=0,
+            default=["Todos"],
             key="cat_inv"
         )
-        if cat_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["Categoria"].astype(str) == cat_sel_inv]
+        if "Todos" not in cat_sel_inv and len(cat_sel_inv) > 0:
+            df_inv = df_inv[df_inv["Categoria"].astype(str).isin(cat_sel_inv)]
 
     col_f4, col_f5 = st.columns(2)
     with col_f4:
         prod_options_inv = opciones_ordenadas(df_inv, "Producto")
-        prod_sel_inv = st.selectbox(
+        prod_sel_inv = st.multiselect(
             "Producto",
             options=["Todos"] + prod_options_inv,
-            index=0,
+            default=["Todos"],
             key="prod_inv"
         )
-        if prod_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["Producto"].astype(str) == prod_sel_inv]
+        if "Todos" not in prod_sel_inv and len(prod_sel_inv) > 0:
+            df_inv = df_inv[df_inv["Producto"].astype(str).isin(prod_sel_inv)]
 
     with col_f5:
         med_options_inv = opciones_ordenadas(df_inv, "Medida")
-        med_sel_inv = st.selectbox(
+        med_sel_inv = st.multiselect(
             "Medida",
             options=["Todos"] + med_options_inv,
-            index=0,
+            default=["Todos"],
             key="med_inv"
         )
-        if med_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["Medida"].astype(str) == med_sel_inv]
+        if "Todos" not in med_sel_inv and len(med_sel_inv) > 0:
+            df_inv = df_inv[df_inv["Medida"].astype(str).isin(med_sel_inv)]
 
-    # Filtro por mes de "Desde"
+    # Filtro por mes-año de "Desde"
     if "Desde" in df_inv.columns:
         df_inv["MesDesde"] = df_inv["Desde"].dt.to_period("M").astype(str)
         mes_options_inv = sorted(df_inv["MesDesde"].dropna().unique())
-        mes_sel_inv = st.selectbox(
+        mes_sel_inv = st.multiselect(
             "Mes de ingreso (columna 'Desde')",
             options=["Todos"] + mes_options_inv,
-            index=0,
+            default=["Todos"],
             key="mes_desde_inv"
         )
-        if mes_sel_inv != "Todos":
-            df_inv = df_inv[df_inv["MesDesde"] == mes_sel_inv]
-    else:
-        mes_sel_inv = "Todos"
+        if "Todos" not in mes_sel_inv and len(mes_sel_inv) > 0:
+            df_inv = df_inv[df_inv["MesDesde"].isin(mes_sel_inv)]
 
     # --- KPIs INVENTARIO ---
     total_materiales = int(df_inv["Cantidad"].sum()) if "Cantidad" in df_inv.columns else len(df_inv)
@@ -316,6 +351,17 @@ with tab_vto:
     # Base: solo filas con fecha de vencimiento
     df_vto = df_raw[df_raw["Vencimiento"].notna()].copy()
 
+    # Botón para limpiar filtros de vencimientos
+    if st.button("🧹 Limpiar filtros de vencimientos"):
+        for key in [
+            "search_vto", "dep_vto", "linea_vto", "cat_vto",
+            "prod_vto", "med_vto", "mes_vto",
+            "estado_vto_radio", "slider_dias_vto"
+        ]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.experimental_rerun()
+
     # --- Buscador VENCIMIENTOS ---
     st.markdown("#### 🔍 Buscador (vencimientos)")
     texto_busqueda_vto = st.text_input(
@@ -331,71 +377,71 @@ with tab_vto:
 
     with col_v1:
         dep_options_vto = opciones_ordenadas(df_vto, "Deposito")
-        dep_sel_vto = st.selectbox(
+        dep_sel_vto = st.multiselect(
             "Depósito",
             options=["Todos"] + dep_options_vto,
-            index=0,
+            default=["Todos"],
             key="dep_vto"
         )
-        if dep_sel_vto != "Todos":
-            df_vto = df_vto[df_vto["Deposito"].astype(str) == dep_sel_vto]
+        if "Todos" not in dep_sel_vto and len(dep_sel_vto) > 0:
+            df_vto = df_vto[df_vto["Deposito"].astype(str).isin(dep_sel_vto)]
 
     with col_v2:
         linea_options_vto = opciones_ordenadas(df_vto, "Linea")
-        linea_sel_vto = st.selectbox(
+        linea_sel_vto = st.multiselect(
             "Línea",
             options=["Todos"] + linea_options_vto,
-            index=0,
+            default=["Todos"],
             key="linea_vto"
         )
-        if linea_sel_vto != "Todos":
-            df_vto = df_vto[df_vto["Linea"].astype(str) == linea_sel_vto]
+        if "Todos" not in linea_sel_vto and len(linea_sel_vto) > 0:
+            df_vto = df_vto[df_vto["Linea"].astype(str).isin(linea_sel_vto)]
 
     with col_v3:
         cat_options_vto = opciones_ordenadas(df_vto, "Categoria")
-        cat_sel_vto = st.selectbox(
+        cat_sel_vto = st.multiselect(
             "Categoría",
             options=["Todos"] + cat_options_vto,
-            index=0,
+            default=["Todos"],
             key="cat_vto"
         )
-        if cat_sel_vto != "Todos":
-            df_vto = df_vto[df_vto["Categoria"].astype(str) == cat_sel_vto]
+        if "Todos" not in cat_sel_vto and len(cat_sel_vto) > 0:
+            df_vto = df_vto[df_vto["Categoria"].astype(str).isin(cat_sel_vto)]
 
     col_v4, col_v5 = st.columns(2)
     with col_v4:
         prod_options_vto = opciones_ordenadas(df_vto, "Producto")
-        prod_sel_vto = st.selectbox(
+        prod_sel_vto = st.multiselect(
             "Producto",
             options=["Todos"] + prod_options_vto,
-            index=0,
+            default=["Todos"],
             key="prod_vto"
         )
-        if prod_sel_vto != "Todos":
-            df_vto = df_vto[df_vto["Producto"].astype(str) == prod_sel_vto]
+        if "Todos" not in prod_sel_vto and len(prod_sel_vto) > 0:
+            df_vto = df_vto[df_vto["Producto"].astype(str).isin(prod_sel_vto)]
 
     with col_v5:
         med_options_vto = opciones_ordenadas(df_vto, "Medida")
-        med_sel_vto = st.selectbox(
+        med_sel_vto = st.multiselect(
             "Medida",
             options=["Todos"] + med_options_vto,
-            index=0,
+            default=["Todos"],
             key="med_vto"
         )
-        if med_sel_vto != "Todos":
-            df_vto = df_vto[df_vto["Medida"].astype(str) == med_sel_vto]
+        if "Todos" not in med_sel_vto and len(med_sel_vto) > 0:
+            df_vto = df_vto[df_vto["Medida"].astype(str).isin(med_sel_vto)]
 
     # Filtro por mes de Vencimiento
     df_vto["MesVto"] = df_vto["Vencimiento"].dt.to_period("M").astype(str)
     mes_options_vto = sorted(df_vto["MesVto"].dropna().unique())
-    mes_sel_vto = st.selectbox(
+    mes_sel_vto = st.multiselect(
         "Mes de vencimiento",
         options=["Todos"] + mes_options_vto,
-        index=0,
+        default=["Todos"],
         key="mes_vto"
     )
-    if mes_sel_vto != "Todos":
-        df_vto = df_vto[df_vto["MesVto"] == mes_sel_vto]
+    if "Todos" not in mes_sel_vto and len(mes_sel_vto) > 0:
+        df_vto = df_vto[df_vto["MesVto"].isin(mes_sel_vto)]
 
     # --- Configuración de vencimientos ---
     st.markdown("#### ⏰ Configuración de vencimientos")
