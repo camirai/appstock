@@ -6,7 +6,7 @@ import streamlit as st
 
 # ------------------ CONFIG GENERAL ------------------ #
 st.set_page_config(
-    page_title="FemiBot Stock",
+    page_title="Stock",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -35,10 +35,6 @@ st.markdown("""
         width: 100% !important;
     }
 
-    .stDataFrame {
-        min-width: 1200px;
-        overflow-x: auto;
-    }
     td, th {
         white-space: normal;
     }
@@ -173,7 +169,7 @@ if not st.session_state.auth_ok:
 df_raw = load_data()
 
 st.title("📊 FemiBot Stock")
-st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
+st.caption("Visualización de stock y vencimientos de materiales.")
 
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
@@ -206,10 +202,10 @@ with tab_inv:
         dep_sel_inv = st.multiselect(
             "Depósito",
             options=["Todos"] + dep_options_inv,
-            default=["Todos"],
+            default=[],
             key="dep_inv"
         )
-        if "Todos" not in dep_sel_inv and dep_sel_inv:
+        if dep_sel_inv and "Todos" not in dep_sel_inv:
             df_inv = df_inv[df_inv["Deposito"].astype(str).isin(dep_sel_inv)]
 
     with col_f2:
@@ -217,10 +213,10 @@ with tab_inv:
         linea_sel_inv = st.multiselect(
             "Línea",
             options=["Todos"] + linea_options_inv,
-            default=["Todos"],
+            default=[],
             key="linea_inv"
         )
-        if "Todos" not in linea_sel_inv and linea_sel_inv:
+        if linea_sel_inv and "Todos" not in linea_sel_inv:
             df_inv = df_inv[df_inv["Linea"].astype(str).isin(linea_sel_inv)]
 
     with col_f3:
@@ -228,10 +224,10 @@ with tab_inv:
         cat_sel_inv = st.multiselect(
             "Categoría",
             options=["Todos"] + cat_options_inv,
-            default=["Todos"],
+            default=[],
             key="cat_inv"
         )
-        if "Todos" not in cat_sel_inv and cat_sel_inv:
+        if cat_sel_inv and "Todos" not in cat_sel_inv:
             df_inv = df_inv[df_inv["Categoria"].astype(str).isin(cat_sel_inv)]
 
     col_f4, col_f5 = st.columns(2)
@@ -240,10 +236,10 @@ with tab_inv:
         prod_sel_inv = st.multiselect(
             "Producto",
             options=["Todos"] + prod_options_inv,
-            default=["Todos"],
+            default=[],
             key="prod_inv"
         )
-        if "Todos" not in prod_sel_inv and prod_sel_inv:
+        if prod_sel_inv and "Todos" not in prod_sel_inv:
             df_inv = df_inv[df_inv["Producto"].astype(str).isin(prod_sel_inv)]
 
     with col_f5:
@@ -251,22 +247,23 @@ with tab_inv:
         med_sel_inv = st.multiselect(
             "Medida",
             options=["Todos"] + med_options_inv,
-            default=["Todos"],
+            default=[],
             key="med_inv"
         )
-        if "Todos" not in med_sel_inv and med_sel_inv:
+        if med_sel_inv and "Todos" not in med_sel_inv:
             df_inv = df_inv[df_inv["Medida"].astype(str).isin(med_sel_inv)]
 
+    # Mes-año de ingreso
     if "Desde" in df_inv.columns:
         df_inv["MesDesde"] = df_inv["Desde"].dt.to_period("M").astype(str)
         mes_options_inv = sorted(df_inv["MesDesde"].dropna().unique())
         mes_sel_inv = st.multiselect(
             "Mes de ingreso (columna 'Desde')",
             options=["Todos"] + mes_options_inv,
-            default=["Todos"],
+            default=[],
             key="mes_desde_inv"
         )
-        if "Todos" not in mes_sel_inv and mes_sel_inv:
+        if mes_sel_inv and "Todos" not in mes_sel_inv:
             df_inv = df_inv[df_inv["MesDesde"].isin(mes_sel_inv)]
 
     total_materiales = int(df_inv["Cantidad"].sum()) if "Cantidad" in df_inv.columns else len(df_inv)
@@ -298,7 +295,16 @@ with tab_inv:
     otros_inv = [c for c in df_inv.columns if c not in cols_existentes_inv + ["MesDesde"]]
     df_inv_view = df_inv[cols_existentes_inv + otros_inv]
 
-    st.dataframe(df_inv_view, use_container_width=True)
+    st.dataframe(
+        df_inv_view,
+        use_container_width=True,
+        column_config={
+            "Deposito": st.column_config.Column("Depósito", width="large"),
+            "Producto": st.column_config.Column("Producto", width="large"),
+            "Categoria": st.column_config.Column("Categoría", width="medium"),
+            "Linea": st.column_config.Column("Línea", width="medium"),
+        },
+    )
 
     excel_inv = to_excel(df_inv_view, sheet_name="Inventario")
     st.download_button(
@@ -342,10 +348,10 @@ with tab_vto:
         dep_sel_vto = st.multiselect(
             "Depósito",
             options=["Todos"] + dep_options_vto,
-            default=["Todos"],
+            default=[],
             key="dep_vto"
         )
-        if "Todos" not in dep_sel_vto and dep_sel_vto:
+        if dep_sel_vto and "Todos" not in dep_sel_vto:
             df_vto = df_vto[df_vto["Deposito"].astype(str).isin(dep_sel_vto)]
 
     with col_v2:
@@ -353,10 +359,10 @@ with tab_vto:
         linea_sel_vto = st.multiselect(
             "Línea",
             options=["Todos"] + linea_options_vto,
-            default=["Todos"],
+            default=[],
             key="linea_vto"
         )
-        if "Todos" not in linea_sel_vto and linea_sel_vto:
+        if linea_sel_vto and "Todos" not in linea_sel_vto:
             df_vto = df_vto[df_vto["Linea"].astype(str).isin(linea_sel_vto)]
 
     with col_v3:
@@ -364,10 +370,10 @@ with tab_vto:
         cat_sel_vto = st.multiselect(
             "Categoría",
             options=["Todos"] + cat_options_vto,
-            default=["Todos"],
+            default=[],
             key="cat_vto"
         )
-        if "Todos" not in cat_sel_vto and cat_sel_vto:
+        if cat_sel_vto and "Todos" not in cat_sel_vto:
             df_vto = df_vto[df_vto["Categoria"].astype(str).isin(cat_sel_vto)]
 
     col_v4, col_v5 = st.columns(2)
@@ -376,10 +382,10 @@ with tab_vto:
         prod_sel_vto = st.multiselect(
             "Producto",
             options=["Todos"] + prod_options_vto,
-            default=["Todos"],
+            default=[],
             key="prod_vto"
         )
-        if "Todos" not in prod_sel_vto and prod_sel_vto:
+        if prod_sel_vto and "Todos" not in prod_sel_vto:
             df_vto = df_vto[df_vto["Producto"].astype(str).isin(prod_sel_vto)]
 
     with col_v5:
@@ -387,10 +393,10 @@ with tab_vto:
         med_sel_vto = st.multiselect(
             "Medida",
             options=["Todos"] + med_options_vto,
-            default=["Todos"],
+            default=[],
             key="med_vto"
         )
-        if "Todos" not in med_sel_vto and med_sel_vto:
+        if med_sel_vto and "Todos" not in med_sel_vto:
             df_vto = df_vto[df_vto["Medida"].astype(str).isin(med_sel_vto)]
 
     df_vto["MesVto"] = df_vto["Vencimiento"].dt.to_period("M").astype(str)
@@ -398,10 +404,10 @@ with tab_vto:
     mes_sel_vto = st.multiselect(
         "Mes de vencimiento",
         options=["Todos"] + mes_options_vto,
-        default=["Todos"],
+        default=[],
         key="mes_vto"
     )
-    if "Todos" not in mes_sel_vto and mes_sel_vto:
+    if mes_sel_vto and "Todos" not in mes_sel_vto:
         df_vto = df_vto[df_vto["MesVto"].isin(mes_sel_vto)]
 
     st.markdown("#### ⏰ Configuración de vencimientos")
@@ -459,7 +465,16 @@ with tab_vto:
     otros_vto = [c for c in df_vto.columns if c not in cols_existentes_vto + ["MesVto"]]
     df_vto_view = df_vto[cols_existentes_vto + otros_vto]
 
-    st.dataframe(df_vto_view, use_container_width=True)
+    st.dataframe(
+        df_vto_view,
+        use_container_width=True,
+        column_config={
+            "Deposito": st.column_config.Column("Depósito", width="large"),
+            "Producto": st.column_config.Column("Producto", width="large"),
+            "Categoria": st.column_config.Column("Categoría", width="medium"),
+            "Linea": st.column_config.Column("Línea", width="medium"),
+        },
+    )
 
     excel_vto = to_excel(df_vto_view, sheet_name="Vencimientos")
     st.download_button(
