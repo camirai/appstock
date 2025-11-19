@@ -6,7 +6,7 @@ import streamlit as st
 
 # ------------------ CONFIG GENERAL ------------------ #
 st.set_page_config(
-    page_title="FemiBot Stock",
+    page_title="Stock",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -168,8 +168,8 @@ if not st.session_state.auth_ok:
 
 df_raw = load_data()
 
-st.title("📊 FemiBot Stock")
-st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
+st.title("📦 Stock")
+st.caption("Visualización de stock y vencimientos de materiales.")
 
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
@@ -177,10 +177,10 @@ tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 # ------------------ TAB INVENTARIO ------------------ #
 
 with tab_inv:
-    st.subheader("Inventario actual")
+    st.subheader("Stock actual")
 
     # Buscador
-    st.markdown("#### 🔍 Buscador (inventario)")
+    st.markdown("#### 🔍 Buscador (stock)")
     texto_busqueda_inv = st.text_input(
         "Buscar por producto, lote, partida, etc.",
         placeholder="Ej: ONYX, 0D737, 001259084...",
@@ -189,7 +189,7 @@ with tab_inv:
     df_inv = aplicar_busqueda(df_raw, texto_busqueda_inv)
 
     # Filtros
-    st.markdown("#### 🎛️ Filtros (inventario)")
+    st.markdown("#### 🎛️ Filtros (stock)")
     col_f1, col_f2, col_f3 = st.columns(3)
 
     with col_f1:
