@@ -38,22 +38,24 @@ st.markdown("""
         white-space: normal;
     }
 
-    /* KPI cards más distintivas */
+    /* KPI cards más distintivas, centradas y en negrita */
     .kpi-card {
         background-color: #f1f5f9;
         border-radius: 0.75rem;
-        padding: 0.75rem 1rem;
+        padding: 0.9rem 1rem;
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+        text-align: center;
     }
     .kpi-label {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         color: #64748b;
         margin-bottom: 0.25rem;
+        font-weight: 600;
     }
     .kpi-value {
-        font-size: 1.6rem;
-        font-weight: 600;
+        font-size: 1.8rem;
+        font-weight: 700;
         color: #0f172a;
     }
     </style>
@@ -169,69 +171,6 @@ st.title("📊 FemiBot Stock")
 st.caption("Visualización dinámica de inventario y vencimientos de materiales.")
 
 
-# ------------------ SIDEBAR: BUSCADOR + FILTROS ------------------ #
-
-st.sidebar.header("🔍 Buscador")
-texto_busqueda = st.sidebar.text_input(
-    "Buscar por producto, lote, partida, etc.",
-    placeholder="Ej: ONYX, 0D737, 001259084..."
-)
-
-df_filtrado = aplicar_busqueda(df_raw, texto_busqueda)
-
-st.sidebar.header("🎛️ Filtros")
-
-# Filtro cascada 1: Depósito
-dep_options = opciones_ordenadas(df_filtrado, "Deposito")
-dep_sel = st.sidebar.selectbox(
-    "Depósito",
-    options=["Todos"] + dep_options,
-    index=0
-)
-if dep_sel != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Deposito"].astype(str) == dep_sel]
-
-# Filtro cascada 2: Línea
-linea_options = opciones_ordenadas(df_filtrado, "Linea")
-linea_sel = st.sidebar.selectbox(
-    "Línea",
-    options=["Todos"] + linea_options,
-    index=0
-)
-if linea_sel != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Linea"].astype(str) == linea_sel]
-
-# Filtro cascada 3: Categoría
-cat_options = opciones_ordenadas(df_filtrado, "Categoria")
-cat_sel = st.sidebar.selectbox(
-    "Categoría",
-    options=["Todos"] + cat_options,
-    index=0
-)
-if cat_sel != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Categoria"].astype(str) == cat_sel]
-
-# Filtro cascada 4: Producto
-prod_options = opciones_ordenadas(df_filtrado, "Producto")
-prod_sel = st.sidebar.selectbox(
-    "Producto",
-    options=["Todos"] + prod_options,
-    index=0
-)
-if prod_sel != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Producto"].astype(str) == prod_sel]
-
-# Filtro cascada 5: Medida
-med_options = opciones_ordenadas(df_filtrado, "Medida")
-med_sel = st.sidebar.selectbox(
-    "Medida",
-    options=["Todos"] + med_options,
-    index=0
-)
-if med_sel != "Todos":
-    df_filtrado = df_filtrado[df_filtrado["Medida"].astype(str) == med_sel]
-
-
 # ------------------ PESTAÑAS PRINCIPALES ------------------ #
 
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
@@ -242,12 +181,97 @@ tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 with tab_inv:
     st.subheader("Inventario actual")
 
-    # KPIs: cada fila = 1 material
-    total_materiales = int(df_filtrado["Cantidad"].sum()) if "Cantidad" in df_filtrado.columns else len(df_filtrado)
-    depositos_unicos = df_filtrado["Deposito"].nunique() if "Deposito" in df_filtrado.columns else 0
+    # --- Buscador INVENTARIO ---
+    st.markdown("#### 🔍 Buscador (inventario)")
+    texto_busqueda_inv = st.text_input(
+        "Buscar por producto, lote, partida, etc.",
+        placeholder="Ej: ONYX, 0D737, 001259084...",
+        key="search_inv"
+    )
+
+    df_inv = aplicar_busqueda(df_raw, texto_busqueda_inv)
+
+    # --- Filtros INVENTARIO ---
+    st.markdown("#### 🎛️ Filtros (inventario)")
+    col_f1, col_f2, col_f3 = st.columns(3)
+
+    with col_f1:
+        dep_options_inv = opciones_ordenadas(df_inv, "Deposito")
+        dep_sel_inv = st.selectbox(
+            "Depósito",
+            options=["Todos"] + dep_options_inv,
+            index=0,
+            key="dep_inv"
+        )
+        if dep_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["Deposito"].astype(str) == dep_sel_inv]
+
+    with col_f2:
+        linea_options_inv = opciones_ordenadas(df_inv, "Linea")
+        linea_sel_inv = st.selectbox(
+            "Línea",
+            options=["Todos"] + linea_options_inv,
+            index=0,
+            key="linea_inv"
+        )
+        if linea_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["Linea"].astype(str) == linea_sel_inv]
+
+    with col_f3:
+        cat_options_inv = opciones_ordenadas(df_inv, "Categoria")
+        cat_sel_inv = st.selectbox(
+            "Categoría",
+            options=["Todos"] + cat_options_inv,
+            index=0,
+            key="cat_inv"
+        )
+        if cat_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["Categoria"].astype(str) == cat_sel_inv]
+
+    col_f4, col_f5 = st.columns(2)
+    with col_f4:
+        prod_options_inv = opciones_ordenadas(df_inv, "Producto")
+        prod_sel_inv = st.selectbox(
+            "Producto",
+            options=["Todos"] + prod_options_inv,
+            index=0,
+            key="prod_inv"
+        )
+        if prod_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["Producto"].astype(str) == prod_sel_inv]
+
+    with col_f5:
+        med_options_inv = opciones_ordenadas(df_inv, "Medida")
+        med_sel_inv = st.selectbox(
+            "Medida",
+            options=["Todos"] + med_options_inv,
+            index=0,
+            key="med_inv"
+        )
+        if med_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["Medida"].astype(str) == med_sel_inv]
+
+    # Filtro por mes de "Desde"
+    if "Desde" in df_inv.columns:
+        df_inv["MesDesde"] = df_inv["Desde"].dt.to_period("M").astype(str)
+        mes_options_inv = sorted(df_inv["MesDesde"].dropna().unique())
+        mes_sel_inv = st.selectbox(
+            "Mes de ingreso (columna 'Desde')",
+            options=["Todos"] + mes_options_inv,
+            index=0,
+            key="mes_desde_inv"
+        )
+        if mes_sel_inv != "Todos":
+            df_inv = df_inv[df_inv["MesDesde"] == mes_sel_inv]
+    else:
+        mes_sel_inv = "Todos"
+
+    # --- KPIs INVENTARIO ---
+    total_materiales = int(df_inv["Cantidad"].sum()) if "Cantidad" in df_inv.columns else len(df_inv)
+    depositos_unicos = df_inv["Deposito"].nunique() if "Deposito" in df_inv.columns else 0
     promedio_dias_deposito = (
-        int(df_filtrado["Dias_en_deposito"].mean())
-        if "Dias_en_deposito" in df_filtrado.columns and not df_filtrado["Dias_en_deposito"].isna().all()
+        int(df_inv["Dias_en_deposito"].mean())
+        if "Dias_en_deposito" in df_inv.columns and not df_inv["Dias_en_deposito"].isna().all()
         else None
     )
 
@@ -260,18 +284,18 @@ with tab_inv:
         if promedio_dias_deposito is not None:
             kpi_card("Promedio días en depósito", promedio_dias_deposito)
 
+    # --- Tabla INVENTARIO ---
     st.markdown("### Detalle de inventario")
 
-    # Orden de columnas para mostrar
-    cols_orden = [
+    cols_orden_inv = [
         "Deposito", "Linea", "Categoria", "Producto", "Medida",
         "Partida", "Secuencia", "Partida_completa", "Secuencia_modif",
         "Lote", "Desde", "Dias_en_deposito",
         "Vencimiento", "Dias_hasta_vto"
     ]
-    cols_existentes = [c for c in cols_orden if c in df_filtrado.columns]
-    otros = [c for c in df_filtrado.columns if c not in cols_existentes]
-    df_inv_view = df_filtrado[cols_existentes + otros]
+    cols_existentes_inv = [c for c in cols_orden_inv if c in df_inv.columns]
+    otros_inv = [c for c in df_inv.columns if c not in cols_existentes_inv + ["MesDesde"]]
+    df_inv_view = df_inv[cols_existentes_inv + otros_inv]
 
     st.dataframe(df_inv_view, use_container_width=True)
 
@@ -289,26 +313,108 @@ with tab_inv:
 with tab_vto:
     st.subheader("Materiales por vencimiento")
 
-    # Controles específicos de vencimiento SOLO acá
+    # Base: solo filas con fecha de vencimiento
+    df_vto = df_raw[df_raw["Vencimiento"].notna()].copy()
+
+    # --- Buscador VENCIMIENTOS ---
+    st.markdown("#### 🔍 Buscador (vencimientos)")
+    texto_busqueda_vto = st.text_input(
+        "Buscar por producto, lote, partida, etc.",
+        placeholder="Ej: ONYX, 0D737, 001259084...",
+        key="search_vto"
+    )
+    df_vto = aplicar_busqueda(df_vto, texto_busqueda_vto)
+
+    # --- Filtros VENCIMIENTOS ---
+    st.markdown("#### 🎛️ Filtros (vencimientos)")
+    col_v1, col_v2, col_v3 = st.columns(3)
+
+    with col_v1:
+        dep_options_vto = opciones_ordenadas(df_vto, "Deposito")
+        dep_sel_vto = st.selectbox(
+            "Depósito",
+            options=["Todos"] + dep_options_vto,
+            index=0,
+            key="dep_vto"
+        )
+        if dep_sel_vto != "Todos":
+            df_vto = df_vto[df_vto["Deposito"].astype(str) == dep_sel_vto]
+
+    with col_v2:
+        linea_options_vto = opciones_ordenadas(df_vto, "Linea")
+        linea_sel_vto = st.selectbox(
+            "Línea",
+            options=["Todos"] + linea_options_vto,
+            index=0,
+            key="linea_vto"
+        )
+        if linea_sel_vto != "Todos":
+            df_vto = df_vto[df_vto["Linea"].astype(str) == linea_sel_vto]
+
+    with col_v3:
+        cat_options_vto = opciones_ordenadas(df_vto, "Categoria")
+        cat_sel_vto = st.selectbox(
+            "Categoría",
+            options=["Todos"] + cat_options_vto,
+            index=0,
+            key="cat_vto"
+        )
+        if cat_sel_vto != "Todos":
+            df_vto = df_vto[df_vto["Categoria"].astype(str) == cat_sel_vto]
+
+    col_v4, col_v5 = st.columns(2)
+    with col_v4:
+        prod_options_vto = opciones_ordenadas(df_vto, "Producto")
+        prod_sel_vto = st.selectbox(
+            "Producto",
+            options=["Todos"] + prod_options_vto,
+            index=0,
+            key="prod_vto"
+        )
+        if prod_sel_vto != "Todos":
+            df_vto = df_vto[df_vto["Producto"].astype(str) == prod_sel_vto]
+
+    with col_v5:
+        med_options_vto = opciones_ordenadas(df_vto, "Medida")
+        med_sel_vto = st.selectbox(
+            "Medida",
+            options=["Todos"] + med_options_vto,
+            index=0,
+            key="med_vto"
+        )
+        if med_sel_vto != "Todos":
+            df_vto = df_vto[df_vto["Medida"].astype(str) == med_sel_vto]
+
+    # Filtro por mes de Vencimiento
+    df_vto["MesVto"] = df_vto["Vencimiento"].dt.to_period("M").astype(str)
+    mes_options_vto = sorted(df_vto["MesVto"].dropna().unique())
+    mes_sel_vto = st.selectbox(
+        "Mes de vencimiento",
+        options=["Todos"] + mes_options_vto,
+        index=0,
+        key="mes_vto"
+    )
+    if mes_sel_vto != "Todos":
+        df_vto = df_vto[df_vto["MesVto"] == mes_sel_vto]
+
+    # --- Configuración de vencimientos ---
     st.markdown("#### ⏰ Configuración de vencimientos")
     col_cfg1, col_cfg2 = st.columns([1, 3])
     with col_cfg1:
         estado_vto = st.radio(
             "Estado de vencimiento",
             options=["Todos", "Solo próximos", "Solo vencidos"],
-            help="Afecta la vista de esta pestaña."
+            help="Afecta la vista de esta pestaña.",
+            key="estado_vto_radio"
         )
     with col_cfg2:
         max_dias_proximos = st.slider(
             "Días hasta vencimiento (para 'próximos')",
             min_value=1,
             max_value=180,
-            value=30
+            value=30,
+            key="slider_dias_vto"
         )
-
-    df_vto = df_filtrado.copy()
-    if "Vencimiento" in df_vto.columns:
-        df_vto = df_vto[df_vto["Vencimiento"].notna()]
 
     # Aplicar estado de vencimiento
     if "Dias_hasta_vto" in df_vto.columns:
@@ -322,21 +428,22 @@ with tab_vto:
         else:
             df_vto = df_vto[df_vto["Dias_hasta_vto"].notna()]
 
-    # KPIs para vencimientos
+    # --- KPIs VENCIMIENTOS ---
     total_vto = len(df_vto)
     cant_vencidos = int((df_vto["Dias_hasta_vto"] < 0).sum()) if "Dias_hasta_vto" in df_vto.columns else 0
     cant_proximos = int(
         ((df_vto["Dias_hasta_vto"] >= 0) & (df_vto["Dias_hasta_vto"] <= max_dias_proximos)).sum()
     ) if "Dias_hasta_vto" in df_vto.columns else 0
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    col1v, col2v, col3v = st.columns(3)
+    with col1v:
         kpi_card("Materiales (vista vencimientos)", total_vto)
-    with col2:
+    with col2v:
         kpi_card("Vencidos", cant_vencidos)
-    with col3:
+    with col3v:
         kpi_card(f"Próx. ≤ {max_dias_proximos} días", cant_proximos)
 
+    # --- Tabla VENCIMIENTOS ---
     st.markdown("### Detalle de vencimientos")
 
     cols_orden_vto = [
@@ -346,7 +453,7 @@ with tab_vto:
         "Vencimiento", "Dias_hasta_vto"
     ]
     cols_existentes_vto = [c for c in cols_orden_vto if c in df_vto.columns]
-    otros_vto = [c for c in df_vto.columns if c not in cols_existentes_vto]
+    otros_vto = [c for c in df_vto.columns if c not in cols_existentes_vto + ["MesVto"]]
     df_vto_view = df_vto[cols_existentes_vto + otros_vto]
 
     st.dataframe(df_vto_view, use_container_width=True)
