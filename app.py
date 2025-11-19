@@ -145,7 +145,7 @@ if "auth_ok" not in st.session_state:
     st.session_state.auth_ok = False
 
 if not st.session_state.auth_ok:
-    st.title("📦 FemiBot Stock")
+    st.title("📦 Stock")
     st.subheader("Ingreso")
 
     with st.form("login_form"):
@@ -171,6 +171,31 @@ df_raw = load_data()
 st.title("📊 FemiBot Stock")
 st.caption("Visualización de stock y vencimientos de materiales.")
 
+# Flags para limpiar filtros (se ejecutan al comienzo del script)
+if "clear_inv" not in st.session_state:
+    st.session_state.clear_inv = False
+if "clear_vto" not in st.session_state:
+    st.session_state.clear_vto = False
+
+if st.session_state.clear_inv:
+    for key in ["search_inv", "dep_inv", "linea_inv", "cat_inv",
+                "prod_inv", "med_inv", "mes_desde_inv"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.session_state.clear_inv = False
+    st.rerun()
+
+if st.session_state.clear_vto:
+    for key in [
+        "search_vto", "dep_vto", "linea_vto", "cat_vto",
+        "prod_vto", "med_vto", "mes_vto",
+        "estado_vto_radio", "slider_dias_vto"
+    ]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.session_state.clear_vto = False
+    st.rerun()
+
 tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 
 
@@ -179,11 +204,9 @@ tab_inv, tab_vto = st.tabs(["📦 Inventario", "⏰ Vencimientos"])
 with tab_inv:
     st.subheader("Inventario actual")
 
+    # Botón: solo setea el flag, el borrado real se hace arriba
     if st.button("🧹 Limpiar filtros de inventario"):
-        for key in ["search_inv", "dep_inv", "linea_inv", "cat_inv",
-                    "prod_inv", "med_inv", "mes_desde_inv"]:
-            if key in st.session_state:
-                del st.session_state[key]
+        st.session_state.clear_inv = True
         st.rerun()
 
     st.markdown("#### 🔍 Buscador (inventario)")
@@ -323,13 +346,7 @@ with tab_vto:
     df_vto = df_raw[df_raw["Vencimiento"].notna()].copy()
 
     if st.button("🧹 Limpiar filtros de vencimientos"):
-        for key in [
-            "search_vto", "dep_vto", "linea_vto", "cat_vto",
-            "prod_vto", "med_vto", "mes_vto",
-            "estado_vto_radio", "slider_dias_vto"
-        ]:
-            if key in st.session_state:
-                del st.session_state[key]
+        st.session_state.clear_vto = True
         st.rerun()
 
     st.markdown("#### 🔍 Buscador (vencimientos)")
